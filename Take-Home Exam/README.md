@@ -33,3 +33,5 @@ To do so, modify the code as follows:
 - Update the input argument of the `sim()` function to the corresponding plan, such as `planGA` for the genetic algorithm. Similarly, `planSA` refers to simulated annealing.
 
 Ensure that only one optimization method is active at a time to streamline execution.
+
+**Note:** `GA.py` contains the same solution for the Genetic Algorithm as in `P4.ipynb`, but it utilizes parallel computing to speed up calculations. This optimization is not possible within a `.ipynb` file.
