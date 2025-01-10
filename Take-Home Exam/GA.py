@@ -1,23 +1,15 @@
-import math
 import numpy as np
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
+import time
+import random
+from tqdm import tqdm
 import copy
-import gif
-from IPython.display import Image
-import random
-from tqdm import tqdm
-import time
+import math
 
-import concurrent.futures
-from functools import partial # for parallel processing
 
-### 
-import numpy as np
-import time
-import random
+#parallel processing    
 import concurrent.futures
-from functools import partial
-from tqdm import tqdm
+from functools import partial 
 
 def calculate_fitness(chromosome, fitness_function):
     return fitness_function(chromosome)
@@ -47,7 +39,6 @@ class GeneticAlgorithm:
         self.tournament_size = tournament_size
         self.n_crossover_points = n_crossover_points
 
-        # Instead of list of lists, use a NumPy array
         if gene_type == "int":
             self.population = np.random.randint(
                 gene_interval[0],
@@ -72,22 +63,15 @@ class GeneticAlgorithm:
         self.generation = 0
         self.best_fitness_per_generation=[]
 
+    # for Parallel processing
     def calculate_population_fitness(self):
-        # For CPU-bound tasks, try a ProcessPoolExecutor
-        # If fitness_function is vectorized, prefer that approach directly.
         with concurrent.futures.ProcessPoolExecutor() as executor:
-            # partial object: pass the user-provided fitness function
             fitness_function_partial = partial(calculate_fitness, 
                                                fitness_function=self.fitness_function)
-            # Map over rows in self.population
             results = executor.map(fitness_function_partial, self.population)
         self.fitness = np.fromiter(results, dtype=float, count=self.population_size)
 
     def crossover(self, parent1, parent2):
-        """
-        n-point crossover
-        parent1, parent2: 1D numpy arrays
-        """
         if random.random() < self.crossover_rate:
             crossover_points = sorted(random.sample(range(1, self.chromosome_length), self.n_crossover_points))
             child1 = np.copy(parent1)
@@ -102,9 +86,6 @@ class GeneticAlgorithm:
         return np.copy(parent1), np.copy(parent2)
 
     def mutate(self, chromosome):
-        """
-        Vectorized approach: for each gene, flip with probability self.mutation_rate
-        """
         for i in range(self.chromosome_length):
             if random.random() < self.mutation_rate:
                 if self.gene_type == "int":
@@ -115,9 +96,7 @@ class GeneticAlgorithm:
 
     def evolve(self):
         new_population = []
-        # Elitism: pick top individuals
-        # Use argsort to get sorted indices by descending fitness
-        sorted_indices = np.argsort(-self.fitness)  # negative for descending
+        sorted_indices = np.argsort(-self.fitness) 
         elites = self.population[sorted_indices[:self.elitism_count]]
         new_population.extend(elites)
 
@@ -133,7 +112,6 @@ class GeneticAlgorithm:
             if len(new_population) < self.population_size:
                 new_population.append(child2)
 
-        # Convert new_population back to a numpy array
         self.population = np.array(new_population)
         self.calculate_population_fitness()
         self.best_individual = self.population[np.argmax(self.fitness)]
@@ -146,11 +124,27 @@ class GeneticAlgorithm:
         Tournament selection: random sample, choose best
         """
     
-        # Randomly pick indices (faster to operate on fitness than re-calling the function)
         idx = np.random.randint(0, self.population_size, size=self.tournament_size)
-        # The best index in the tournament
         best_t_idx = idx[np.argmax(self.fitness[idx])]
         return self.population[best_t_idx].copy()
+    
+    def select_parent_roulette_wheel_not_in_use(self):
+        """
+        Roulette wheel selection: select based on fitness proportion
+        """
+        # Ensure all selection probabilities are non-negative
+        min_fitness = np.min(self.fitness)
+        if min_fitness < 0:
+            adjusted_fitness = self.fitness - min_fitness
+        else:
+            adjusted_fitness = self.fitness
+
+        total_fitness = np.sum(adjusted_fitness)
+        selection_probs = adjusted_fitness / total_fitness
+        
+        # Perform roulette wheel selection
+        selected_idx = np.random.choice(self.population_size, p=selection_probs)
+        return self.population[selected_idx].copy()
 
     def run(self, max_generation=1000, max_time_sec=np.inf):
         start_time = time.time()
@@ -360,12 +354,12 @@ if __name__ == "__main__":
         crossover_rate=0.9,
         n_crossover_points=3,
         mutation_rate=0.04,
-        elitism_count=2,
+        elitism_count=1,
         tournament_size=8,
         fitness_function=sim2
     )
 
-    ga.run(9)
+    ga.run(900)
     print(f"Best Individual: {ga.best_individual}")
     print(f"Best Fitness: {ga.fitness_function(ga.best_individual)}")
 
